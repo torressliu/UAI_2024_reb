@@ -1,1 +1,7 @@
+We are immensely grateful to you for recognizing the importance and novelty of our approach. Your valuable suggestions inspire us to improve our work further. Based on your feedback, we analyzed our work and added extended experiments to the new version. Besides, the writing is optimized in the new version.
+### Detailed Comments 
+**C1: The necessity and the reason why using transformer? Of course, transformer is always a fashion choice in DL, but I will still wonder if there is a better choice.**
 
+Please allow me to explain why transformer is more efficient in our framework. Since there naturally exists hierarchical dependencies during the action selection process, i.e., state$\to$discrete action→discrete region$\to$continuous action, we use a Transformer-style sequence model to model such dependencies and generate their Q-values (as Transformer is suitable for modeling sequence dependence). We regard the embedded states, actions, regions, etc, as input tokens (like words in NLP). Besides, Qi ,et al.\footnote{Han, Qi, et al.``On the connection between local attention and dynamic depth-wise convolution." ICLR (2021).} demonstrate that transformer has a better ability to capture relevance.
+
+**C2: For you to split the control process into 3 levels, especially the sub-area choice level makes me confused even though you have proved it through ablation experiments. I would wonder about the insight behind this. Or could this problem be solved by other optimization methods like bandit in continuous space?**
