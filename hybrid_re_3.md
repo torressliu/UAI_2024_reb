@@ -1,44 +1,88 @@
 Thanks for your thorough, meticulous, and impartial advice which considerably eases the enhancement of our research. We meticulously amended the writing inaccuracies and optimized our work.
 
 ### Questions
-**Q1.3: The examples used in the benchmarks are also small scale: a 2D continuous environment with a few obstacles, suggesting poor scalability. What about a hybrid task where, instead of reaching a goal avoiding some obstacles, the agent would need to look for a key and open a door on the other side of the map. This deserves clarification.**
-感谢您有价值的提议！我们使用minigrid构造了您描述的任务。且为了更全面的分析算法有效性，我们构造了三个目标相同，但地图大小、边界范围不同的场景。We use minigrid to construct a set of maze tasks with the same goal: 
-Agent must take the key to open the door and go to the goal point. 
-Scenario A is a small map (square boundary), scenario B (square boundary) and scenario C (rectangle boundary) are big maps. The observation space of each scenario is the same, but the scene scale, boundary shape, and obstacle placement are different. [See anonymous link for visualization of the tasks](https://anonymous.4open.science/r/ICML_reviewer_3-0622/README.md). 
-动作空间：智能体需要选择离散化方向（前后左右）以及对应方向行走的格数（向前走几格（1至4格），连续参数空间是$[0.5,4.5],环境端会将连续动作离散化保证走的是整数单位：0.5-1.5是一格，1.5-2.5是两格，以此类推。）我们按照文中实验设定将所有方法在上述三个场景进行评估，表1结果显示，我们的方法在两个较为复杂的场景（B,A）上超过了所有基线，这进一步证明我们方法的有效性，目前的SOTAHyAR-TD3较差的表现说明其无法学习到任务的逻辑。
-在A上，我们的方法优势稍微不明显，这也印证了在简单的场景确实不存在较困难的探索场景，因此其他基线也可以学到不错的策略。
-**Q1.1: The first one is that it is unclear how the proposed method helps in the so-called hard exploration tasks.** 
+**Q1.1: The examples used in the benchmarks are also small scale: a 2D continuous environment with a few obstacles, suggesting poor scalability. What about a hybrid task where, instead of reaching a goal avoiding some obstacles, the agent would need to look for a key and open a door on the other side of the map. This deserves clarification.**
 
-以往的混合动作空间算法大多需要同时对离散动作和连续动作同时选择，由离散和连续动作空间结合而成的复杂决策空间提升了策略的决策难度，即必须同时选对离散动作和最优参数才能得到高分。为了缓解策略在混合动作空间中探索困难，我们借鉴以往单一连续动作空间控制中的离散化思想[]。将每个离散动作对应的参数划分为多个离散化区间.并最终对混合动作空间进行重构，
-具体而言，就是将扁平化决策：$\pi(s)\to (a_{discrete},a_{continious}$转化为树状动作空间：$\pi(s)\to a_{discrete},\pi(s,a_{discrete})\to a_{continious_region},,\pi(s,a_{discrete},a_{continious_region})\to a_{continious}$.
-这样做有两个好处，
-- 在策略具有较强的探索利用能力的前提下，串行选择降低了并行选择的难度，因为在大多数场景离散动作的选择决定性更强，e.g. 
-在迷宫中方向的选择比速度的选择更关键，相邻的参数对环境的影响相似因此我们对参数空间进行了切分即同一子区间内的参数语义相似即选对子区间后策略只需要在较小的子区间探索最优参数即使不是最优其对应的奖励也是正向的引导策略偏好对这一子区间进行采样。
-此外，三层次串行决策的好处是每一层的决策都较为简单，即先从最重要的离散动作中选择，再从离散的参数子区间进行选择，最后在子区间中国年确定参数。
-- 我们的框架相比于以往的并行决策，引入了更多信息辅助策略进行决策，在决策子区间时网络的输入会加入所选离散动作的one-hot编码辅助策略选择参数子区间（每个动作在每个状态可能对应一个可行区间例如在迷宫中向前走这一离散动作往往对应较高的速度），同理策略选择参数时也会在子区间和离散动作的辅助下进行决策。
-- 但以上前提都是在策略具有较强的探索利用能力的前提下才能在三层串行决策中有效训练。为此，在efficient-zero[2]中使用MCTS辅助RL算法在非稳定场景中进行决策的启发下，我们雇佣MCTS实现对树状动作空间进行高效探索，并使用Q网络评估的Q值计算每一层节点的价值。从而增强了策略在层次化决策中的能力。
+Thanks for your valuable advice! We will add validation on complex scenarios in the new version. We use minigrid to construct a set of maze tasks with the same goal: Agent must take the key to open the door and go to the goal point. These three scenes have the same three targets, but different map sizes and boundary ranges.
 
-**Q1.2: Algorithm 1 is confusing, requiring traversing all sub-regions first, then doing MCTS and eventually, training the transformer. This suggests that a very good initialization of the value and policy networks is needed, with samples covering most of the interesting parts of the state-action space.** 
+**Environment Introduction:** Scenario A is a small map (square boundary), scenario B (square boundary) and scenario C (rectangle boundary) are big maps. The observation space of each scenario is the same, but the scene scale, boundary shape, and obstacle placement are different. [See anonymous link for visualization of the tasks](https://anonymous.4open.science/r/ICML_reviewer_3-0622/README.md). 
 
-- 感谢您指出表述模糊的部分，新版本对这一块进行了优化。并不是一定要全部遍历后才能进行MCTS，我们这样做的原因是在实验过程中发现先对节点进行遍历可以提升策略的学习速度。但其实不遍历最终的策略表现水平也可以达到相似的水平（超越其他baselines），在chase上略差。我们在新版本附录中公开了在三个场景上对比遍历和不遍历的方法的测试分数。表4的结果展示，二者最终收敛到同一水平，但遍历可以实现更快的收敛。表5记录了两种方法的收敛速度。
-- 感谢您富有见地的提问！我们在训练我们的算法时是随机初始化的。但您提供了一个很好的思路，我们也好奇初始化参数会会对方法产生什么影响，以及会带来多大的提升。我们在三个新建立的场景上与我们的方法进行了对比并在三个场景上进行了验证。表6中的结果显示，随机初始化参数在经过多轮训练后可以达到和初始化参数相同的效果。这也侧面证明我们的MCTS+RL的结合是有效的。
+**Action space:** Discretization direction: left, right, forward, back; Continuous action: Speed, the number of squares to walk in the corresponding direction (1 to 4). The continuous action space is [0.5,4.5], and the environment will discretize the continuous actions to ensure that they are in integer units: [0.5,1.5) is one step, [1.5,2.5) is two, and so on.
 
-进一步，我们分析了两种策略学习的速度。表5显示，较好的初始化确实会有效提升策略的学习效率。上述实验被放到了新版本中。
+We evaluate all methods in the above three scenarios according to the experimental settings in this paper. The results in Table 1 show that our method outperforms all baselines in three complex scenarios, which further proves the effectiveness of our method. The poor performance of the current SOTA method, i.e. HyAR-TD3, indicates the inefficiency of its exploration ability.
 
-**Q2: The proposed methodology appears too incremental. The authors propose a strategy to encode/represent continuous parameterized actions which can be efficient for MCTS but, unfortunately, there is no formal analysis besides the empirical evaluation. 
-For example, why a homogeneous partitioning? It is unclear how this strategy would extend to other hybrid settings beyond the ones used in the experiments.**
+Table 1. Win rate (Average of 10 runs):
+| Method      | Scenario A (%)| Scenario B (%)| Scenario C (%)|
+| :-: | :-: | :-: | :-: |
+| HyAR-TD3|$40$|$20$|$30$|
+| HPPO |$30$|$0$|$30$|
+| PDQN |$10$ |$0$|$10$|
+| HHQN |$30$ |$10$|$20$|
+| **Ours** |$60$ |$40$|$50$|
 
-感谢您指出表述模糊的地方，我们在新版本中对齐次划分子区间做了进一步解释：
-- 第一个原因是我们希望使用简单的技术做出一个任务无关的子区间划分方法。那么顺序（齐次）切分是最直接的方法，我们只需要设定区间数目。
-- 另一个使用齐次分割的原因是，对于大多数场景，参数往往代表离散动作的程度（速度等），因此相近的参数往往对环境的影响相似，例如在迷宫中智能体在同一方向上选择走1格和走2格效果是相似的。
-- 这一方式可以直接扩展到参数维度是多维的场景，例如两维的参数（比如坐标），我们的齐次切分依旧可以使语义相似的参数在一个区间。可视化请看这个匿名链接（）
-- 此外，我们进一步验证，对于特定的任务(场景B)，表7显示人为构造的参数区间与齐次切分的有效性没有较大差异。不过收敛速度确实会更快。
+The results in Table 1 show that our method outperforms all baselines in three complex scenarios, which further proves the effectiveness of our method. The poor performance of the current SOTA method, i.e. HyAR-TD3, indicates the inefficiency of its exploration ability.
+
+**Q1.2: It is unclear how the proposed method helps in the so-called hard exploration tasks.** 
+
+Most of the previous hybrid action space algorithms need to select discrete actions and continuous actions at the same time. The complex decision space composed of discrete and continuous action spaces increases the difficulty of policy decisions, that is, the correct discrete actions and efficient continuous parameters must be selected at the same time. To alleviate the difficulty of policy exploration in the hybrid action space, we divide the parameters corresponding to each discrete action into multiple discretization regions. Finally, the flat hybrid action space is reconstructed into a hierarchical structure. Specifically, we transform the flat decision: $' \pi(s)\to (a_{discrete},a_{continious} '$into a decision tree-like form: $`\pi(s)\to a_{discrete},\pi(s,a_{discrete})\to a_{continious_region},,\pi(s,a_{discrete},a_{continious_region})\to  a_{continious}`$.
+
+Hierarchical decision making has two benefits：
+- Under the premise that the policy has strong exploration and exploitation ability, hierarchical decision can reduce the difficulty of parallel selection. Because, such a hierarchical decision is a flow from coarse-grained (discrete actions) to fine-grained (continuous action sub-area). For example, in a maze, the choice of direction is more important than the choice of speed. Hierarchical decision making can first find the optimal direction by a small amount of exploration to ensure that the policy obtains positive feedback, and then find good continuous action subintervals from the optimal direction by further sampling, and finally quickly explore the optimal parameters in a small subregion.
+- All the above prerequisites can be effectively trained in hierarchical decision-making only if the policy has strong exploration and exploitation ability. To this end, inspired by the use of MCTS to aid RL algorithms in decision making in stochastic scenarios[1], we employ the MCTS to efficiently explore the tree-shaped action space and compute the value of nodes at each layer using Q-values evaluated by Q-networks. By doing this, the ability of the policy in hierarchical decision making is enhanced. 
+- Our framework has the potential to be improved, as we currently use discounted UCB[1]. We have recently tried a variety of more advanced UCB calculation methods, UCB-V, to verify in multiple scenarios, and found that the effect can be further improved. This further embodies that the combination of our constructed hierarchical decision framework and MCTS is effective.
+
+**Q1.3: Algorithm 1 is confusing, requiring traversing all sub-regions first, then doing MCTS and eventually, training the transformer. This suggests that a very good initialization of the value and policy networks is needed, with samples covering most of the interesting parts of the state-action space.** 
+
+Thanks for pointing out the vague part, we will explain it in detail and add additional experiments in the new version. It is not necessary to traverse all sub-regions before performing MCTS, the reason we do this is that we found in the experiment process that traversing the sub-regions first can improve the learning speed of the policy. The policy without traversing all sub-regions can also achieve a similar level of performance (outperforming the other baselines) with the help of MCTS's powerful ability to balance exploration and exploitation. 
+
+We expose the performance of the methods. Method 1: traversing all sub-regions first. Method 2:  without traversing all sub-regions first and directly doing MCTS. The results in Table 2 show that both methods perform at similar levels, with method 1 performing slightly better on Chase. Table 3 shows the convergence speeds of the two methods, "traversing all sub-regions first" indeed helpful to improve the exploration efficiency of the policy and improve the learning speed.
+
+Table 2. Performance (Average of 5 runs):
+| Method      | Chase | Move| Hard Goal|
+| :-: | :-: | :-: | :-: |
+| Method 1|$0.81\pm 0.08$|$0.97\pm 0.04$|$0.58\pm 0.13$|
+| Method 2|$0.72\pm 0.05$|$0.95\pm 0.08$|$0.56\pm 0.17$|
+
+Table 3. Learning speed (Average of 5 runs):
+| Method      | Chase | Move| Hard Goal|
+| :-: | :-: | :-: | :-: |
+| Method 1|$2h12min$|$1h26min$|$8h41min$|
+| Method 2|$2h48min$|$2h05min$|$10h13min$|
+
+**Q2: The proposed methodology appears too incremental. The authors propose a strategy to encode/represent continuous parameterized actions which can be efficient for MCTS but, unfortunately, there is no formal analysis besides the empirical evaluation. For example, why a homogeneous partitioning? It is unclear how this strategy would extend to other hybrid settings beyond the ones used in the experiments.**
+
+Thanks for pointing out the ambiguity, and we've highlighted the reason for using homogeneous partitioning in the new version.
+感谢您指出表述有歧义的地方，我们在新版本中对齐次划分子区间做了进一步解释：
+- The first reason is that we want to design a task-agnostic subregion partition method. And sequential (homogeneous) segmentation is the most direct method, we only need to specify the number of regions and do not need more prior knowledge to design the action structure for each task.
+- Another reason to use homogeneous segmentation is that, for most scenarios, the parameters tend to represent the degree (speed, etc.) of discrete actions, so close parameters tend to have similar effects on the environment. For example, in a maze, if the agent chooses to go 1 grid and go 2 grids in the same direction, the effect will be similar.
+- This approach can be directly extended to the case where the parameter dimension is multi-dimensional, such as two-dimensional parameters (e.g., coordinates), and our homogeneous partition can still keep semantically similar parameters in the same interval. Visualize this anonymous link ()
+- When the continuous parameters corresponding to different discrete actions are different. Our method first sets the output dimension according to the maximum number of continuous actions to realize the unified decision of all discrete actions and the corresponding continuous actions. That is, when the maximum number of continuous parameters is 4, we set the output dimension of the continuous action policy to be 4. When the selected discrete action corresponds to two continuous actions, we default to only use the first two output dimensions to interact with the environment.  In addition, we truncate the gradient of the output excess dimension of the continuous action to prevent the noise gradient from affecting the policy training.
+
+We construct a complex mixed action space task using the Goal scenario to verify the effectiveness of our approach for diverse hybrid action settings. The agent needs to get past the opposing defender and kick the ball into the goal. Discrete actions correspond to a diverse number of continuous actions.
+
+*Action space (discrete action-continuous action) :* Shot-force (p), move -coordinate (x,y), dribble -no continuous component. 
+
+Table 4 shows that our method outperforms other methods in this task. It indicates that our above techniques can indeed enable the extension of our approach to more complex hybrid action space control.
+
+Table 4. Performance (Average of 5 runs):
+| Method| Goal with complex action space|
+| :-: | :-: |
+| **Ours**|$0.51\pm 0.14$|
+| HyAR-TD3|$0.36\pm 0.08$|
+| HPPO|$0.06\pm 0.11$|
+| PDQN|$0.17\pm 0.09$|
+| HHQN|$0.14\pm 0.18$|
 
 **Q3: The paper claims to address several challenges: hybrid action spaces, hard (sparse) exploration problems, and eventually mult-agent systems. It is confusing where is the main contribution of the work.**
 
-我们为粗糙的表达给你带来的困扰道歉，在新版本中我们进一步突出了我们的动机。我们的核心是观测到混合动作空间中复杂的离散-连续关系会造成的探索空间爆炸进而导致的探索困难，并提出重构动作空间并借助transfomer-based MCTS辅助强化学习来缓解这一问题。在这一主要贡献基础上，我们在附录中（以防读者混淆）展示了我们的方法拓展到多智能体场景的潜力，并将我们的方法和CTDE框架结合的效果举例。
-
+We further highlight our contribution in the new version. Our core motivation, which does not involve multi-agents, is to address exploration difficulties due to complex discrete-continuous relationships in hybrid action Spaces. We only use multi-agent scenarios to verify that our method can perform well compared to other methods in more complex scenarios, such as multi-agent scenarios.
 
 **Q4: Finally, there is a vast literature combining discrete (for example combined task and motion planning) that is not mentioned at all in this work.**
 
+Thank you for your advice. We'll update this section to the new version of the background section.
+
 抱歉我们以往更多关注了混合动作空间控制这一领域的相关工作。我们对离散化这一领域进行了调研，并将这一部分放到了背景部分。
+and neighboring parameters in the same speed space have similar effects on the environment so we split the parameter space meaning that the parameters in the same subinterval are semantically similar meaning that after choosing the right subinterval, the policy only needs to explore the optimal parameter in the smaller subinterval and even if it is not optimal, the corresponding reward is positive guidance policy preference sampling this subinterval.
+
+In addition, the benefit of three-level serial decision making is that the decision of each level is relatively simple, that is, policy first selects from the most important discrete actions, then selects from the discrete parameter subregions, and finally determines the parameters in the subinterval Chinese years.
+- 我们的框架相比于以往的并行决策，引入了更多信息辅助策略进行决策，在决策子区间时网络的输入会加入所选离散动作的one-hot编码辅助策略选择参数子区间（每个动作在每个状态可能对应一个可行区间例如在迷宫中向前走这一离散动作往往对应较高的速度），同理策略选择参数时也会在子区间和离散动作的辅助下进行决策。
