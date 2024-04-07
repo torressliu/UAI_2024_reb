@@ -16,7 +16,7 @@ We compare our method and the Discounted UCB bandit method in three scenarios. W
 Table 1. Win rate (Average of 10 runs):
 | Method      | Chase | Move| Hard Goal|
 | :-----------: | :-----------: | :------------: | :-----------: |
-| Ours|$0.81\pm 0.08$|$0.97\pm 0.04$|$o.58\pm 0.13$|
+| Ours|$0.81\pm 0.08$|$0.97\pm 0.04$|$0.58\pm 0.13$|
 | Bandit for continous space |$0.73\pm 0.11$|$0.86\pm 0.07$|$0.27\pm 0.13$|
 
 
